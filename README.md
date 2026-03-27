@@ -6,15 +6,60 @@
 
 ---
 
+## ⚡ Быстрый старт — получить RPM
+
+> **Важно:** RPM собирается только на **Linux-машине** (ALT Linux, Fedora, RHEL).
+> На Windows используйте WSL2 или GitHub Actions (см. ниже).
+
+```bash
+# 1. Клонировать репозиторий на Linux-машину
+git clone https://github.com/firstbeelancer/alt-hardening-scanner.git
+cd alt-hardening-scanner
+
+# 2. Запустить скрипт сборки
+#    Скрипт автоматически:
+#      — определит дистрибутив (ALT Linux / Fedora / RHEL)
+#      — проверит и установит зависимости (webkit2gtk, openssl, rpm-build)
+#      — установит Rust и Tauri CLI если их нет
+#      — соберёт релизный бинарь и упакует его в .rpm
+bash build-rpm.sh
+```
+
+**RPM появится по пути:**
+```
+src-tauri/target/release/bundle/rpm/
+  alt-hardening-scanner-1.0.0-alt1.x86_64.rpm
+```
+
+**Установка готового пакета:**
+```bash
+# Через rpm (универсально):
+sudo rpm -i src-tauri/target/release/bundle/rpm/*.rpm
+
+# Через apt-rpm (ALT Linux — разрешает зависимости):
+sudo apt-get install ./src-tauri/target/release/bundle/rpm/*.rpm
+
+# Через dnf (Fedora — разрешает зависимости):
+sudo dnf install ./src-tauri/target/release/bundle/rpm/*.rpm
+```
+
+**Запуск после установки:**
+```bash
+alt-hardening-scanner          # сканирование (без root)
+sudo alt-hardening-scanner     # + применение hardening-настроек
+```
+
+---
+
 ## Возможности
 
 | Функция | Описание |
 |---------|----------|
 | 🔍 Сканирование | Проверяет все 25 параметров Таблицы 2 (sysctl + GRUB) |
 | 🔒 Применение | Устанавливает целевые значения с резервными копиями файлов |
-| 📄 HTML-отчёт | Самодостаточный HTML с цветовой кодировкой |
-| 📑 PDF-отчёт | Через wkhtmltopdf (fallback → HTML) |
-| 📦 RPM-пакет | Собирается через `cargo tauri build --bundles rpm` |
+| 📄 HTML-отчёт | Самодостаточный HTML с цветовой кодировкой и метаданными |
+| 📑 PDF-отчёт | Через wkhtmltopdf (автоматический fallback → HTML) |
+| 📦 RPM-пакет | Собирается через `bash build-rpm.sh` |
 
 ---
 
@@ -25,7 +70,7 @@ alt-hardening-scanner/
 ├── src-tauri/
 │   ├── Cargo.toml           # зависимости Rust
 │   ├── tauri.conf.json      # конфигурация Tauri + RPM-метаданные
-│   ├── build.rs
+│   ├── build.rs             # скрипт сборки Tauri
 │   └── src/
 │       ├── main.rs          # точка входа, регистрация команд
 │       ├── checks.rs        # все 25 параметров Таблицы 2
@@ -36,7 +81,7 @@ alt-hardening-scanner/
 │   ├── index.html           # интерфейс (6 разделов)
 │   ├── style.css            # корпоративный стиль
 │   └── main.js              # логика фронтенда + Tauri invoke()
-├── build-rpm.sh             # скрипт сборки RPM
+├── build-rpm.sh             # ← скрипт сборки RPM (запускать этот)
 └── README.md
 ```
 
@@ -44,35 +89,64 @@ alt-hardening-scanner/
 
 ## Требования для сборки
 
-### На ALT Linux / ALT Рабочая Станция 11
+### ALT Linux / ALT Рабочая Станция 11
 
 ```bash
-# Rust toolchain
-curl https://sh.rustup.rs | sh
+# Rust toolchain (если не установлен)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 
-# Системные библиотеки
+# Системные библиотеки сборки
 sudo apt-get install \
     webkit2gtk3-devel \
     libappindicator-gtk3-devel \
     openssl-devel \
-    libsoup3-devel \
     rpm-build \
     gcc \
     pkg-config
 
 # Tauri CLI
-cargo install tauri-cli --version "^2"
+cargo install tauri-cli --version "^2" --locked
 ```
 
-### На Fedora / RHEL-совместимых
+### Fedora 39+ / RHEL 9+
 
 ```bash
+# Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Системные библиотеки сборки
 sudo dnf install \
     webkit2gtk4.0-devel \
     libappindicator-gtk3-devel \
     openssl-devel \
-    rpm-build
+    rpm-build \
+    gcc \
+    pkg-config
+
+# Tauri CLI
+cargo install tauri-cli --version "^2" --locked
+```
+
+> **Примечание:** `build-rpm.sh` устанавливает всё это автоматически — ручная установка нужна только если хотите управлять зависимостями самостоятельно.
+
+---
+
+## Сборка без Linux-машины (WSL2 на Windows)
+
+```powershell
+# Открыть WSL2 (PowerShell):
+wsl
+
+# Внутри WSL2 — клонировать и собрать:
+git clone https://github.com/firstbeelancer/alt-hardening-scanner.git
+cd alt-hardening-scanner
+bash build-rpm.sh
+
+# Готовый RPM будет в:
+# src-tauri/target/release/bundle/rpm/*.rpm
+# Скопировать на Linux-машину и установить через rpm/dnf
 ```
 
 ---
@@ -80,54 +154,12 @@ sudo dnf install \
 ## Разработка (dev-режим)
 
 ```bash
+# На Linux-машине с установленными зависимостями:
 cd src-tauri
 cargo tauri dev
 ```
 
-Приложение откроется с hot-reload — изменения в `ui/` применяются сразу.
-
----
-
-## Сборка RPM
-
-### Быстрый способ (скрипт)
-
-```bash
-bash build-rpm.sh
-```
-
-### Вручную
-
-```bash
-cd src-tauri
-cargo tauri build --bundles rpm
-```
-
-RPM появится в:
-```
-src-tauri/target/release/bundle/rpm/alt-hardening-scanner-1.0.0-alt1.x86_64.rpm
-```
-
-### Установка RPM
-
-```bash
-# Через rpm
-sudo rpm -i src-tauri/target/release/bundle/rpm/*.rpm
-
-# Через apt-rpm (ALT Linux)
-sudo apt-get install ./src-tauri/target/release/bundle/rpm/*.rpm
-
-# Через dnf (Fedora)
-sudo dnf install ./src-tauri/target/release/bundle/rpm/*.rpm
-```
-
-После установки приложение запускается командой:
-
-```bash
-alt-hardening-scanner
-# или с правами root для применения настроек:
-sudo alt-hardening-scanner
-```
+Приложение откроется с hot-reload — изменения в `ui/` применяются мгновенно без перекомпиляции.
 
 ---
 
@@ -135,13 +167,12 @@ sudo alt-hardening-scanner
 
 | Операция | Права |
 |----------|-------|
-| Сканирование | Обычный пользователь |
-| Применение sysctl | **root** (`sudo`) |
-| Применение GRUB | **root** (`sudo`) + перезагрузка |
+| Сканирование (чтение) | Обычный пользователь |
+| Применение sysctl | **root** (`sudo alt-hardening-scanner`) |
+| Применение GRUB | **root** + **перезагрузка** |
 
-Если приложение запущено без root и нажата кнопка «Включить защиту»,
-появляется сообщение:
-> *«Перезапустите: `sudo alt-hardening-scanner`»*
+Если приложение запущено без root и нажата кнопка «Включить защиту», появляется сообщение:
+> *«Для применения настроек требуются права root. Перезапустите: `sudo alt-hardening-scanner`»*
 
 ---
 
@@ -149,41 +180,41 @@ sudo alt-hardening-scanner
 
 ### sysctl (`/etc/sysctl.conf`)
 
-| № | Параметр | Цель | По умолчанию |
-|---|----------|------|--------------|
-| 1 | `kernel.dmesg_restrict` | 1 | 1 |
-| 2 | `kernel.kptr_restrict` | 2 | 0 |
-| 8 | `net.core.bpf_jit_harden` | 2 | 0 |
-| 10 | `kernel.perf_event_paranoid` | 3 | 4 |
-| 12 | `kernel.kexec_load_disabled` | 1 | 0 |
-| 13 | `user.max_user_namespaces` | 0 | 5098941 |
-| 14 | `kernel.unprivileged_bpf_disabled` | 1 | 2 |
-| 15 | `vm.unprivileged_userfaultfd` | 0 | 1 |
-| 16 | `dev.tty.ldisc_autoload` | 0 | 1 |
-| 18 | `vm.mmap_min_addr` | 4096 | 65536 |
-| 19 | `kernel.randomize_va_space` | 2 | 2 |
-| 20 | `kernel.yama.ptrace_scope` | 3 | 1 |
-| 21 | `fs.protected_symlinks` | 1 | 1 |
-| 22 | `fs.protected_hardlinks` | 1 | 1 |
-| 23 | `fs.protected_fifos` | 2 | 1 |
-| 24 | `fs.protected_regular` | 2 | 1 |
-| 25 | `fs.suid_dumpable` | 0 | 0 |
+| № | Параметр | Цель | По умолчанию | Описание |
+|---|----------|------|--------------|----------|
+| 1 | `kernel.dmesg_restrict` | 1 | 1 | Ограничение доступа к dmesg |
+| 2 | `kernel.kptr_restrict` | 2 | 0 | Скрытие адресов ядра |
+| 8 | `net.core.bpf_jit_harden` | 2 | 0 | Защита JIT-компилятора BPF |
+| 10 | `kernel.perf_event_paranoid` | 3 | 4 | Ограничение perf events |
+| 12 | `kernel.kexec_load_disabled` | 1 | 0 | Запрет загрузки ядра через kexec |
+| 13 | `user.max_user_namespaces` | 0 | 5098941 | Отключение user namespaces |
+| 14 | `kernel.unprivileged_bpf_disabled` | 1 | 2 | Запрет BPF без root |
+| 15 | `vm.unprivileged_userfaultfd` | 0 | 1 | Запрет unprivileged userfaultfd |
+| 16 | `dev.tty.ldisc_autoload` | 0 | 1 | Запрет автозагрузки TTY ldisc |
+| 18 | `vm.mmap_min_addr` | 4096 | 65536 | Защита от NULL-ptr dereference |
+| 19 | `kernel.randomize_va_space` | 2 | 2 | ASLR уровень 2 |
+| 20 | `kernel.yama.ptrace_scope` | 3 | 1 | Полный запрет ptrace |
+| 21 | `fs.protected_symlinks` | 1 | 1 | Защита symlink |
+| 22 | `fs.protected_hardlinks` | 1 | 1 | Защита hardlink |
+| 23 | `fs.protected_fifos` | 2 | 1 | Усиленная защита FIFO |
+| 24 | `fs.protected_regular` | 2 | 1 | Усиленная защита файлов |
+| 25 | `fs.suid_dumpable` | 0 | 0 | Запрет core-дампов для SUID |
 
 ### GRUB (`GRUB_CMDLINE_LINUX_DEFAULT`)
 
-| № | Параметр | Статус цели |
-|---|----------|-------------|
-| 3 | `init_on_alloc=1` | присутствует |
-| 4 | `slab_nomerge` | присутствует |
-| 5 | `iommu=force iommu.strict=1 iommu.passthrough=0` | все три |
-| 6 | `randomize_kstack_offset=1` | присутствует |
-| 7 | `mitigations=auto,nosmt` | присутствует |
-| 9 | `vsyscall=none` | присутствует |
-| 11 | `debugfs=no-mount` | присутствует |
-| 17 | `tsx=off` | присутствует |
+| № | Параметр | Описание |
+|---|----------|----------|
+| 3 | `init_on_alloc=1` | Инициализация памяти нулями при выделении |
+| 4 | `slab_nomerge` | Запрет слияния slab-кэшей |
+| 5 | `iommu=force iommu.strict=1 iommu.passthrough=0` | Принудительный IOMMU + strict DMA |
+| 6 | `randomize_kstack_offset=1` | Рандомизация смещения стека ядра |
+| 7 | `mitigations=auto,nosmt` | Все CPU-митигации + отключение SMT |
+| 9 | `vsyscall=none` | Отключение legacy vsyscall ABI |
+| 11 | `debugfs=no-mount` | Запрет монтирования debugfs |
+| 17 | `tsx=off` | Отключение Intel TSX (TAA/TSX Async Abort) |
 
 ---
 
 ## Лицензия
 
-MIT
+MIT — свободное использование, включая коммерческое применение.
