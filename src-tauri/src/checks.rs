@@ -1,0 +1,276 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Interface {
+    Sysctl,
+    Grub,
+}
+
+// String (не &'static str) — чтобы Check можно было десериализовать из JSON
+// когда фронтенд возвращает ScanResult обратно через Tauri invoke.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Check {
+    pub id: u32,
+    pub param: String,
+    pub interface: Interface,
+    pub target_value: String,
+    pub default_value: String,
+    pub description: String,
+    pub section: String,
+}
+
+// Вспомогательный макрос — убирает шаблонный .to_string() из каждого поля
+macro_rules! chk {
+    (
+        id:            $id:expr,
+        param:         $param:expr,
+        interface:     $iface:expr,
+        target_value:  $target:expr,
+        default_value: $default:expr,
+        description:   $desc:expr,
+        section:       $section:expr $(,)?
+    ) => {
+        Check {
+            id:            $id,
+            param:         $param.to_string(),
+            interface:     $iface,
+            target_value:  $target.to_string(),
+            default_value: $default.to_string(),
+            description:   $desc.to_string(),
+            section:       $section.to_string(),
+        }
+    };
+}
+
+pub fn all_checks() -> Vec<Check> {
+    vec![
+        // ── Sysctl параметры ──────────────────────────────────────────────────
+        chk! {
+            id:            1,
+            param:         "kernel.dmesg_restrict",
+            interface:     Interface::Sysctl,
+            target_value:  "1",
+            default_value: "1",
+            description:   "Ограничивает доступ к dmesg для непривилегированных пользователей",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            2,
+            param:         "kernel.kptr_restrict",
+            interface:     Interface::Sysctl,
+            target_value:  "2",
+            default_value: "0",
+            description:   "Скрывает адреса ядра из /proc/kallsyms и других интерфейсов",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            8,
+            param:         "net.core.bpf_jit_harden",
+            interface:     Interface::Sysctl,
+            target_value:  "2",
+            default_value: "0",
+            description:   "Усиливает защиту JIT-компилятора BPF против атак типа blinding",
+            section:       "РД ФСТЭК — п.4.3 Сетевая безопасность",
+        },
+        chk! {
+            id:            10,
+            param:         "kernel.perf_event_paranoid",
+            interface:     Interface::Sysctl,
+            target_value:  "3",
+            default_value: "4",
+            description:   "Ограничивает доступ к событиям производительности ядра",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            12,
+            param:         "kernel.kexec_load_disabled",
+            interface:     Interface::Sysctl,
+            target_value:  "1",
+            default_value: "0",
+            description:   "Запрещает загрузку нового ядра через kexec (защита от подмены ядра)",
+            section:       "РД ФСТЭК — п.4.2 Целостность ядра",
+        },
+        chk! {
+            id:            13,
+            param:         "user.max_user_namespaces",
+            interface:     Interface::Sysctl,
+            target_value:  "0",
+            default_value: "5098941",
+            description:   "Отключает пользовательские пространства имён (вектор атак контейнерного побега)",
+            section:       "РД ФСТЭК — п.4.4 Изоляция процессов",
+        },
+        chk! {
+            id:            14,
+            param:         "kernel.unprivileged_bpf_disabled",
+            interface:     Interface::Sysctl,
+            target_value:  "1",
+            default_value: "2",
+            description:   "Запрещает непривилегированным пользователям использовать BPF",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            15,
+            param:         "vm.unprivileged_userfaultfd",
+            interface:     Interface::Sysctl,
+            target_value:  "0",
+            default_value: "1",
+            description:   "Запрещает unprivileged userfaultfd — источник UAF-уязвимостей",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            16,
+            param:         "dev.tty.ldisc_autoload",
+            interface:     Interface::Sysctl,
+            target_value:  "0",
+            default_value: "1",
+            description:   "Запрещает автозагрузку дисциплин линии TTY (вектор LPE)",
+            section:       "РД ФСТЭК — п.4.2 Целостность ядра",
+        },
+        chk! {
+            id:            18,
+            param:         "vm.mmap_min_addr",
+            interface:     Interface::Sysctl,
+            target_value:  "4096",
+            default_value: "65536",
+            description:   "Минимальный адрес для mmap — защита от NULL-pointer dereference",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            19,
+            param:         "kernel.randomize_va_space",
+            interface:     Interface::Sysctl,
+            target_value:  "2",
+            default_value: "2",
+            description:   "Полная рандомизация адресного пространства (ASLR уровень 2)",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            20,
+            param:         "kernel.yama.ptrace_scope",
+            interface:     Interface::Sysctl,
+            target_value:  "3",
+            default_value: "1",
+            description:   "Полный запрет ptrace — исключает инспекцию памяти процессов",
+            section:       "РД ФСТЭК — п.4.4 Изоляция процессов",
+        },
+        chk! {
+            id:            21,
+            param:         "fs.protected_symlinks",
+            interface:     Interface::Sysctl,
+            target_value:  "1",
+            default_value: "1",
+            description:   "Защита от атак через symlink в sticky-директориях",
+            section:       "РД ФСТЭК — п.4.6 Защита файловой системы",
+        },
+        chk! {
+            id:            22,
+            param:         "fs.protected_hardlinks",
+            interface:     Interface::Sysctl,
+            target_value:  "1",
+            default_value: "1",
+            description:   "Защита от атак через hardlink для чужих файлов",
+            section:       "РД ФСТЭК — п.4.6 Защита файловой системы",
+        },
+        chk! {
+            id:            23,
+            param:         "fs.protected_fifos",
+            interface:     Interface::Sysctl,
+            target_value:  "2",
+            default_value: "1",
+            description:   "Усиленная защита FIFO-файлов в sticky-директориях",
+            section:       "РД ФСТЭК — п.4.6 Защита файловой системы",
+        },
+        chk! {
+            id:            24,
+            param:         "fs.protected_regular",
+            interface:     Interface::Sysctl,
+            target_value:  "2",
+            default_value: "1",
+            description:   "Усиленная защита обычных файлов в sticky-директориях",
+            section:       "РД ФСТЭК — п.4.6 Защита файловой системы",
+        },
+        chk! {
+            id:            25,
+            param:         "fs.suid_dumpable",
+            interface:     Interface::Sysctl,
+            target_value:  "0",
+            default_value: "0",
+            description:   "Запрещает создание core-дампов для SUID/SGID процессов",
+            section:       "РД ФСТЭК — п.4.6 Защита файловой системы",
+        },
+
+        // ── GRUB параметры (GRUB_CMDLINE_LINUX_DEFAULT) ───────────────────────
+        chk! {
+            id:            3,
+            param:         "init_on_alloc=1",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Инициализация памяти нулями при выделении — предотвращает утечку данных",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            4,
+            param:         "slab_nomerge",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Отключает слияние slab-кэшей — затрудняет heap-спрей атаки",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            5,
+            param:         "iommu=force iommu.strict=1 iommu.passthrough=0",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "IOMMU принудительный режим + strict DMA isolation (защита от DMA-атак)",
+            section:       "РД ФСТЭК — п.4.7 Аппаратная защита",
+        },
+        chk! {
+            id:            6,
+            param:         "randomize_kstack_offset=1",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Рандомизация смещения стека ядра — затрудняет ROP-цепочки",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            7,
+            param:         "mitigations=auto,nosmt",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Все CPU-митигации + отключение SMT (защита от Spectre/Meltdown/MDS)",
+            section:       "РД ФСТЭК — п.4.7 Аппаратная защита",
+        },
+        chk! {
+            id:            9,
+            param:         "vsyscall=none",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Отключает legacy vsyscall ABI — устраняет фиксированное ядерное отображение",
+            section:       "РД ФСТЭК — п.4.5 Защита памяти",
+        },
+        chk! {
+            id:            11,
+            param:         "debugfs=no-mount",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Запрещает монтирование debugfs — скрывает внутренние данные ядра",
+            section:       "РД ФСТЭК — п.4.1 Управление доступом к ядру",
+        },
+        chk! {
+            id:            17,
+            param:         "tsx=off",
+            interface:     Interface::Grub,
+            target_value:  "present",
+            default_value: "absent",
+            description:   "Отключает Intel TSX — устраняет уязвимости TAA/TSX Async Abort",
+            section:       "РД ФСТЭК — п.4.7 Аппаратная защита",
+        },
+    ]
+}

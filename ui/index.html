@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALT Hardening Scanner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand-card">
+          <div class="brand-logo">A</div>
+          <div class="brand-text">
+            <h1>ALT Hardening</h1>
+            <p>Панель безопасности</p>
+          </div>
+        </div>
+
+        <section class="sidebar-block">
+          <div class="sidebar-block-title">Разделы</div>
+          <div class="sidebar-nav">
+            <button class="nav-item nav-item-active" data-view="dashboard">Панель</button>
+            <button class="nav-item" data-view="profile">Профиль</button>
+            <button class="nav-item" data-view="policies">Политики</button>
+            <button class="nav-item" data-view="reports">Отчёты</button>
+            <button class="nav-item" data-view="system">Система</button>
+            <button class="nav-item" data-view="analytics">Аналитика</button>
+          </div>
+        </section>
+
+        <section class="sidebar-block">
+          <div class="sidebar-block-title">Сводка</div>
+          <div class="sidebar-stat-list">
+            <article class="sidebar-stat-card">
+              <span>Открытые замечания</span>
+              <strong id="open-findings">0</strong>
+            </article>
+            <article class="sidebar-stat-card">
+              <span>Выполненные контроли</span>
+              <strong id="completed-controls">0</strong>
+            </article>
+            <article class="sidebar-stat-card">
+              <span>Готовые отчёты</span>
+              <strong id="reports-ready">0</strong>
+            </article>
+            <article class="sidebar-stat-card">
+              <span>Оценка аудита</span>
+              <strong id="audit-score">75%</strong>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <div class="history-card history-card-sidebar">
+        <div class="history-icon">↻</div>
+        <div>
+          <strong>История доступна</strong>
+          <p>Переходите в «Отчёты», чтобы посмотреть сохранённые выгрузки и журнал операций.</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="dashboard">
+      <section class="topbar-card">
+        <div class="search-pill">
+          <span class="search-icon">⌕</span>
+          <span id="search-placeholder">Поиск по проверкам, политикам и параметрам</span>
+        </div>
+
+        <div class="identity-card">
+          <div class="avatar">A</div>
+          <div>
+            <strong>ALT Scanner</strong>
+            <p id="topbar-subtitle">Обзор состояния узла</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="center-column">
+          <section class="page-view is-active" id="view-dashboard">
+            <header class="hero-header">
+              <div>
+                <p class="eyebrow">ФСТЭК РД 25.12.2022</p>
+                <h2 class="hero-title">Состояние защищённости ALT Рабочая Станция 11</h2>
+                <p class="hero-subtitle">
+                  Единая панель для сканирования, применения hardening-настроек и экспорта отчётов.
+                </p>
+              </div>
+
+              <div class="hero-system" id="sysinfo">
+                <span class="sysinfo-chip">Хост: <strong id="hostname">—</strong></span>
+                <span class="sysinfo-chip">ОС: <strong id="os-name">—</strong></span>
+                <span class="sysinfo-chip">Ядро: <strong id="kernel">—</strong></span>
+              </div>
+            </header>
+
+            <section class="metric-grid">
+              <article class="metric-card">
+                <span class="metric-kicker">Проверено</span>
+                <strong class="metric-value" id="total-count">0</strong>
+                <span class="metric-foot">Все базовые контроли</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-kicker">Соответствует</span>
+                <strong class="metric-value success-number" id="pass-count">0</strong>
+                <span class="metric-foot">Настроено по целевому профилю</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-kicker">Требует действий</span>
+                <strong class="metric-value danger-number" id="fail-count">0</strong>
+                <span class="metric-foot">Доступно для исправления</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-kicker">Н/Д</span>
+                <strong class="metric-value muted-number" id="na-count">0</strong>
+                <span class="metric-foot">Недоступно или не применимо</span>
+              </article>
+            </section>
+
+            <section class="chart-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Обзор сканирования</h3>
+                  <p>Текущий профиль безопасности и доступные действия</p>
+                </div>
+                <div class="heading-switch">
+                  <span class="switch-label">Срез</span>
+                  <span class="switch-pill">Сейчас</span>
+                </div>
+              </div>
+
+              <div class="toolbar">
+                <button class="btn btn-primary" id="btn-scan" onclick="runScan()">▶ Запустить сканирование</button>
+                <button class="btn btn-danger" id="btn-fix" onclick="applySettings()" disabled>🔒 Включить защиту</button>
+                <button class="btn btn-secondary" id="btn-html" onclick="exportHtml()" disabled>📄 Экспорт HTML</button>
+                <button class="btn btn-secondary" id="btn-pdf" onclick="exportPdf()" disabled>📑 Экспорт PDF</button>
+              </div>
+
+              <div class="progress-section" id="progress-section" style="display:none">
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+                </div>
+                <span class="progress-label" id="progress-label">Сканирование...</span>
+              </div>
+
+              <div class="notification" id="notification" style="display:none">
+                <span id="notification-text"></span>
+                <button class="notif-close" onclick="hideNotification()">✕</button>
+              </div>
+
+              <div class="summary-bar" id="summary-bar" style="display:none">
+                <span class="summary-item pass-text">✅ <strong id="summary-pass">Норма</strong></span>
+                <span class="summary-item fail-text">❌ <strong id="summary-fail">Нужно исправить</strong></span>
+                <span class="summary-item na-text">⚪ <strong id="summary-na">Недоступно</strong></span>
+              </div>
+
+              <div class="mini-bars" aria-hidden="true">
+                <span class="mini-bar tall blue"></span>
+                <span class="mini-bar medium steel"></span>
+                <span class="mini-bar highest blue"></span>
+                <span class="mini-bar short steel"></span>
+                <span class="mini-bar medium blue"></span>
+                <span class="mini-bar tall steel"></span>
+                <span class="mini-bar medium blue"></span>
+                <span class="mini-bar short steel"></span>
+              </div>
+            </section>
+
+            <section class="table-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Детальные результаты</h3>
+                  <p>Параметры hardening, текущие значения и статус проверки</p>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <table id="results-table">
+                  <thead>
+                    <tr>
+                      <th class="col-id">№</th>
+                      <th class="col-type">Интерфейс</th>
+                      <th class="col-param">Параметр</th>
+                      <th class="col-current">Текущее</th>
+                      <th class="col-target">Цель</th>
+                      <th class="col-status">Статус</th>
+                      <th class="col-desc">Описание</th>
+                      <th class="col-section">Раздел документа</th>
+                    </tr>
+                  </thead>
+                  <tbody id="results-body">
+                    <tr class="empty-row">
+                      <td colspan="8">Нажмите «Запустить сканирование» для построения панели состояния</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section class="page-view" id="view-policies">
+            <section class="content-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Политики безопасности</h3>
+                  <p>Описание политик в последовательности, совпадающей с порядком проверок на дашборде</p>
+                </div>
+              </div>
+              <div id="policies-list" class="policies-page-list"></div>
+            </section>
+          </section>
+
+          <section class="page-view" id="view-profile">
+            <section class="content-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Профиль узла</h3>
+                  <p>Обобщённый профиль защищённости рабочей станции по логике документа hardening</p>
+                </div>
+              </div>
+              <div class="profile-grid" id="profile-grid"></div>
+            </section>
+          </section>
+
+          <section class="page-view" id="view-reports">
+            <section class="content-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Отчёты и журнал</h3>
+                  <p>Список выгрузок, выполненные операции и история сканирования</p>
+                </div>
+                <button class="btn btn-primary" id="btn-download-all">⬇ Скачать всё</button>
+              </div>
+              <div class="reports-layout">
+                <div>
+                  <h4 class="subheading">Сделанные отчёты</h4>
+                  <div id="reports-list" class="stack-list"></div>
+                </div>
+                <div>
+                  <h4 class="subheading">Логи</h4>
+                  <div id="logs-list" class="stack-list stack-list-logs"></div>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section class="page-view" id="view-analytics">
+            <section class="content-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Аналитика хоста</h3>
+                  <p>Технические сведения о системе и окружении, полученные во время работы</p>
+                </div>
+              </div>
+              <div class="analytics-grid" id="analytics-grid"></div>
+            </section>
+          </section>
+
+          <section class="page-view" id="view-system">
+            <section class="content-card">
+              <div class="card-heading">
+                <div>
+                  <h3>Система</h3>
+                  <p>Базовые сведения о рабочей станции и её роли в модели безопасной настройки</p>
+                </div>
+              </div>
+              <div class="system-grid" id="system-grid"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="reboot-modal" style="display:none">
+    <div class="modal-card">
+      <h2 class="modal-title">Требуется перезагрузка</h2>
+      <p class="modal-body">
+        Параметры GRUB были обновлены. Sysctl-настройки уже активны, а изменения загрузчика начнут действовать после перезагрузки системы.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="hideRebootModal()">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
