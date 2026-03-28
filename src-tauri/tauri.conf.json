@@ -17,21 +17,20 @@
     "linux": {
       "deb": {
         "depends": []
+      },
+      "rpm": {
+        "depends": [],
+        "recommends": [],
+        "provides": ["alt-hardening-scanner"],
+        "conflicts": [],
+        "replaces": [],
+        "epoch": 0,
+        "release": "alt1",
+        "preInstallScript": null,
+        "postInstallScript": null,
+        "preRemoveScript": null,
+        "postRemoveScript": null
       }
-    },
-
-    "rpm": {
-      "depends": [],
-      "recommends": [],
-      "provides": ["alt-hardening-scanner"],
-      "conflicts": [],
-      "replaces": [],
-      "epoch": 0,
-      "release": "alt1",
-      "preInstallScript": null,
-      "postInstallScript": null,
-      "preRemoveScript": null,
-      "postRemoveScript": null
     }
   },
 

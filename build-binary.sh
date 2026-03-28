@@ -3,7 +3,7 @@
 #  build-binary.sh — Сборка ТОЛЬКО бинарника (без RPM-упаковки)
 #
 #  Результат: один исполняемый файл
-#    src-tauri/target/release/alt-hardening-scanner
+#    ./alt-hardening-scanner  (в корне репозитория)
 #
 #  Размер: ~4–10 МБ (lto + strip + opt-level=s)
 #  Зависимости на целевой машине: libwebkit2gtk, libgtk+3 (уже есть в ALT p11)
@@ -14,7 +14,6 @@
 #
 #  ИСПОЛЬЗОВАНИЕ:
 #    bash build-binary.sh
-#    # Бинарь будет в: ./alt-hardening-scanner  (в корне репозитория)
 #
 #  ЗАПУСК:
 #    ./alt-hardening-scanner
@@ -28,6 +27,7 @@ YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 step()  { echo -e "${BLUE}[STEP]${NC}  $*"; }
 ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 echo ""
@@ -40,52 +40,77 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
+# Все артефакты сборки — в каталоге проекта, не в /tmp
+export CARGO_TARGET_DIR="${SCRIPT_DIR}/src-tauri/target"
+
 # ── Rust toolchain ────────────────────────────────────────────────────────────
 step "Проверка Rust..."
 [ -f "${HOME}/.cargo/env" ] && source "${HOME}/.cargo/env" 2>/dev/null || true
-command -v cargo &>/dev/null || error "cargo не найден.\n  ALT Linux: sudo apt-get install -y rust cargo\n  или: curl https://sh.rustup.rs | sh"
+
+if ! command -v cargo &>/dev/null; then
+    error "cargo не найден.\n\
+  ALT Linux: sudo apt-get install -y rust\n\
+  (пакет 'cargo' отдельно не существует — cargo входит в пакет 'rust')\n\
+  Без интернета: sudo apt-get install -y rust\n\
+  С интернетом:  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+fi
 info "cargo: $(cargo --version)"
 
-# ── Tauri CLI ─────────────────────────────────────────────────────────────────
-step "Проверка Tauri CLI..."
-if ! cargo tauri --version &>/dev/null 2>&1; then
-    info "Устанавливаю tauri-cli v2 (5–15 мин при первом запуске)..."
-    cargo install tauri-cli --version "^2" --locked
+RUSTC_MINOR=$(rustc --version | grep -oP '1\.\K[0-9]+' | head -1 || echo "0")
+if [ "${RUSTC_MINOR}" -lt 77 ]; then
+    error "Нужен rustc ≥ 1.77. Текущий: $(rustc --version)\n  sudo apt-get install -y rust"
 fi
-ok "Tauri CLI: $(cargo tauri --version 2>/dev/null)"
 
 # ── Системные библиотеки ──────────────────────────────────────────────────────
 step "Проверка системных библиотек..."
 
+# Реальные имена пакетов в ALT Linux (проверено на p11/Sisyphus)
 MISSING=()
-for pkg in libwebkit2gtk-devel openssl-devel pkg-config gcc; do
-    if ! rpm -q "$pkg" &>/dev/null; then
+declare -A PKG_CHECK=(
+    ["libwebkit2gtk-devel"]="libwebkit2gtk-devel"
+    ["libssl-devel"]="libssl-devel"
+    ["libgtk+3-devel"]="libgtk+3-devel"
+    ["pkg-config"]="pkg-config"
+    ["gcc"]="gcc"
+    ["gcc-c++"]="gcc-c++"
+)
+
+for pkg in "${!PKG_CHECK[@]}"; do
+    if rpm -q "$pkg" &>/dev/null; then
+        ok "  ✓ $pkg"
+    else
+        warn "  ✗ $pkg"
         MISSING+=("$pkg")
     fi
 done
 
 if [ "${#MISSING[@]}" -gt 0 ]; then
-    echo -e "${YELLOW}  Не найдены: ${MISSING[*]}${NC}"
+    echo ""
+    warn "Не найдены: ${MISSING[*]}"
     read -rp "  Установить? [y/N]: " ans
-    [[ "${ans,,}" == "y" ]] && sudo apt-get install -y "${MISSING[@]}" \
-        || error "Установите зависимости: sudo apt-get install -y ${MISSING[*]}"
+    if [[ "${ans,,}" == "y" ]]; then
+        sudo apt-get install -y "${MISSING[@]}" \
+            || error "apt-get завершился с ошибкой. Попробуйте: sudo apt-get update"
+    else
+        error "Установите зависимости:\n  sudo apt-get install -y ${MISSING[*]}"
+    fi
 fi
 
 # ── Сборка ────────────────────────────────────────────────────────────────────
 step "Сборка release-бинарника..."
 echo ""
-info "cargo tauri build"
+info "cargo build --release  (артефакты: ${CARGO_TARGET_DIR})"
 echo ""
 
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 
 cd src-tauri
-cargo tauri build 2>&1 || error "Сборка провалилась. Запустите с RUST_LOG=error для деталей."
+cargo build --release 2>&1 \
+    || error "Сборка провалилась. Запустите с RUST_BACKTRACE=1 для деталей."
 cd ..
 
 # ── Копируем бинарь в корень проекта ─────────────────────────────────────────
-BINARY="src-tauri/target/release/alt-hardening-scanner"
-
+BINARY="${CARGO_TARGET_DIR}/release/alt-hardening-scanner"
 [ -f "${BINARY}" ] || error "Бинарь не найден: ${BINARY}"
 
 cp "${BINARY}" ./alt-hardening-scanner
@@ -95,7 +120,7 @@ SIZE=$(du -sh ./alt-hardening-scanner | cut -f1)
 
 echo ""
 echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}${BOLD}  ✅ Бинарник готов${NC}"
+echo -e "${GREEN}${BOLD}  Бинарник готов${NC}"
 echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BOLD}Файл:${NC}    ./alt-hardening-scanner"
@@ -115,6 +140,6 @@ echo -e "  ${BOLD}# Скопировать на другую машину:${NC}"
 echo -e "  scp ./alt-hardening-scanner user@target:~/alt-hardening-scanner"
 echo -e "  ssh user@target 'sudo ~/alt-hardening-scanner'"
 echo ""
-echo -e "  ${YELLOW}⚠ Требуется ALT Linux p11 / Sisyphus с webkit2gtk и gtk3${NC}"
-echo -e "  ${YELLOW}  (входят в базовую установку рабочей станции)${NC}"
+echo -e "  ${YELLOW}Требуется ALT Linux p11 / Sisyphus с webkit2gtk и gtk3${NC}"
+echo -e "  ${YELLOW}(входят в базовую установку рабочей станции)${NC}"
 echo ""

@@ -111,11 +111,10 @@ info "Обнаружен: ${BOLD}${DISTRO_PRETTY}${NC}"
 #  ─────────────────────────────────────────────────────────────
 #  Пакет                  │ Зачем нужен
 #  ───────────────────────┼────────────────────────────────────────────────
-#  rust                   │ Компилятор rustc ≥ 1.77 (есть в ALT p11/Sisyphus)
-#  cargo                  │ Менеджер пакетов Rust (идёт вместе с rust)
+#  rust                   │ Компилятор rustc + cargo (в ALT один пакет!)
 #  libwebkit2gtk-devel    │ WebView-движок Tauri (webkit2gtk-4.0 dev-заголовки)
-#  openssl-devel          │ TLS — для WebView и tauri-bundler
-#  gtk3-devel             │ GTK3 dev-заголовки (базовый UI-тулкит)
+#  libssl-devel           │ TLS — для WebView и tauri-bundler (ALT: libssl-devel, не openssl-devel)
+#  libgtk+3-devel         │ GTK3 dev-заголовки (ALT: libgtk+3-devel, не gtk3-devel)
 #  pkg-config             │ Поиск .pc-файлов при компиляции C-зависимостей
 #  gcc                    │ C-компилятор (линковка системных библиотек)
 #  gcc-c++                │ C++ (webkit2gtk требует C++)
@@ -125,16 +124,17 @@ info "Обнаружен: ${BOLD}${DISTRO_PRETTY}${NC}"
 #  • libwebkit2gtk    — runtime, подтянется как зависимость devel-пакета
 #  • libssl           — runtime OpenSSL, уже есть в базовой системе
 #  • libgtk+3         — GTK3 runtime, тоже уже есть
+#
+#  ВНИМАНИЕ: пакета 'cargo' в ALT Linux НЕТ — cargo входит в пакет 'rust'
 # ═════════════════════════════════════════════════════════════════════════════
 step "Шаг 2/6 — Проверка системных зависимостей..."
 
 # ALT Linux p11 / Sisyphus
 ALT_DEPS=(
     "rust"
-    "cargo"
     "libwebkit2gtk-devel"
-    "openssl-devel"
-    "gtk3-devel"
+    "libssl-devel"
+    "libgtk+3-devel"
     "pkg-config"
     "gcc"
     "gcc-c++"
@@ -221,11 +221,13 @@ if ! command -v rustc &>/dev/null; then
 
     if [ "$DISTRO" = "altlinux" ]; then
         info "Устанавливаю из репозитория ALT Linux..."
-        sudo apt-get install -y rust cargo || {
-            warn "Не удалось из репозитория. Использую rustup как fallback..."
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-                | sh -s -- -y --no-modify-path --profile minimal
-            source "${HOME}/.cargo/env"
+        # В ALT Linux cargo входит в пакет rust — отдельного пакета cargo нет
+        sudo apt-get install -y rust || {
+            warn "Не удалось установить из репозитория."
+            warn "Интернет недоступен или репозиторий не настроен."
+            error "Установите вручную: sudo apt-get install -y rust\n\
+  (пакет 'cargo' отдельно не существует в ALT Linux — cargo входит в 'rust')\n\
+  Если нет доступа к репозиторию — обратитесь к администратору."
         }
     else
         sudo dnf install -y rust cargo 2>/dev/null || {
@@ -264,10 +266,21 @@ if cargo tauri --version &>/dev/null 2>&1; then
     ok "Tauri CLI: $(cargo tauri --version 2>/dev/null)"
 else
     info "Tauri CLI не найден. Собираю tauri-cli v2..."
-    info "(Первая сборка займёт 5–15 минут)"
+    info "(Первая сборка займёт 5–15 минут, нужен доступ к crates.io)"
+    info "Артефакты: ${CARGO_HOME}"
+
+    # Проверяем доступность crates.io перед попыткой
+    if ! curl --silent --max-time 5 https://crates.io > /dev/null 2>&1; then
+        error "Нет доступа к crates.io. На изолированных машинах tauri-cli\n\
+  нужно установить заранее на машине с интернетом:\n\
+    export CARGO_HOME=/path/to/portable-cargo-home\n\
+    cargo install tauri-cli --version '^2' --locked\n\
+  Затем скопировать \$CARGO_HOME/bin/cargo-tauri на целевую машину."
+    fi
+
     cargo install tauri-cli --version "^2" --locked \
         || error "Не удалось установить tauri-cli.\n\
-  Проверьте: sudo apt-get install -y gcc openssl-devel pkg-config"
+  Проверьте: sudo apt-get install -y gcc libssl-devel pkg-config"
     ok "Tauri CLI: $(cargo tauri --version 2>/dev/null)"
 fi
 
@@ -278,6 +291,10 @@ step "Шаг 5/6 — Проверка структуры проекта..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
+
+# Все артефакты сборки — в каталоге проекта, не в /tmp
+export CARGO_TARGET_DIR="${SCRIPT_DIR}/src-tauri/target"
+export CARGO_HOME="${SCRIPT_DIR}/.cargo-home"
 
 [ -f "src-tauri/Cargo.toml" ]      || error "Не найден src-tauri/Cargo.toml — запускайте из корня репозитория."
 [ -f "src-tauri/tauri.conf.json" ] || error "Не найден src-tauri/tauri.conf.json"
@@ -313,7 +330,7 @@ step "Шаг 6/6 — Сборка RPM..."
 echo ""
 info "Запускаю: cargo tauri build --bundles rpm"
 
-LOG="/tmp/tauri-build-$(date +%Y%m%d_%H%M%S).log"
+LOG="${SCRIPT_DIR}/build-$(date +%Y%m%d_%H%M%S).log"
 info "Лог: ${LOG}"
 echo ""
 
@@ -335,10 +352,12 @@ if [ "${BUILD_OK}" != "true" ]; then
     echo ""
     echo -e "${YELLOW}  Частые причины ошибок на ALT Linux p11:${NC}"
     echo "  1. webkit2gtk не найден  → sudo apt-get install -y libwebkit2gtk-devel"
-    echo "  2. openssl не найден     → sudo apt-get install -y openssl-devel"
-    echo "  3. Старый rustc          → sudo apt-get install -y rust  (или rustup update)"
-    echo "  4. Нет pkg-config        → sudo apt-get install -y pkg-config"
-    echo "  5. Нет rpmbuild          → sudo apt-get install -y rpm-build"
+    echo "  2. openssl не найден     → sudo apt-get install -y libssl-devel"
+    echo "  3. gtk3 не найден        → sudo apt-get install -y libgtk+3-devel"
+    echo "  4. Старый rustc          → sudo apt-get install -y rust"
+    echo "  5. Нет pkg-config        → sudo apt-get install -y pkg-config"
+    echo "  6. Нет rpmbuild          → sudo apt-get install -y rpm-build"
+    echo "  7. Ошибка линкера        → sudo apt-get install -y gcc gcc-c++"
     echo ""
     echo -e "  Полный лог: ${LOG}"
     exit 1
