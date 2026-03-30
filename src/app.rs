@@ -1,6 +1,5 @@
 use adw::prelude::*;
 use gtk::gdk;
-use gtk::prelude::*;
 
 use crate::config::APP_ID;
 use crate::window::MainWindow;
@@ -23,7 +22,7 @@ pub fn build_app() -> adw::Application {
 
 fn load_css() {
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(include_str!("../data/style.css"));
+    provider.load_from_data(include_str!("../data/style.css"));
 
     if let Some(display) = gdk::Display::default() {
         gtk::style_context_add_provider_for_display(

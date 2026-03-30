@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -9,10 +8,9 @@ use std::time::Duration;
 use adw::prelude::*;
 use chrono::Local;
 use gtk::glib::{self, ControlFlow};
-use gtk::prelude::*;
 
 use crate::checks::all_checks;
-use crate::config::{reports_dir, APP_NAME, APP_VERSION};
+use crate::config::{reports_dir, APP_NAME};
 use crate::models::{
     ApplyResult, HostAnalytics, ReportFormat, ReportMetadata, ScanResult, ScanSession, Status,
     SystemInfo,
@@ -89,7 +87,7 @@ impl MainWindow {
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
 
         let sidebar = gtk::StackSidebar::new();
-        sidebar.set_stack(Some(&stack));
+        sidebar.set_stack(&stack);
         sidebar.add_css_class("sidebar");
         sidebar.set_size_request(220, -1);
 
