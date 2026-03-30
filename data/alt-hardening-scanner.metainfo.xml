@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.firstbeelancer.alt-hardening-scanner</id>
+  <name>ALT Hardening Scanner</name>
+  <summary>ALT Linux hardening scanner for FSTEC recommendations</summary>
+  <summary xml:lang="ru">Сканер безопасной настройки ALT Linux по рекомендациям ФСТЭК</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="org.firstbeelancer">
+    <name>firstbeelancer</name>
+  </developer>
+  <launchable type="desktop-id">alt-hardening-scanner.desktop</launchable>
+  <description>
+    <p>Native GTK4/libadwaita application for checking and applying ALT Linux workstation hardening parameters.</p>
+    <p xml:lang="ru">Нативное приложение на GTK4/libadwaita для проверки и применения параметров защищённой настройки ALT Linux Рабочая Станция 11.</p>
+  </description>
+  <categories>
+    <category>Security</category>
+    <category>System</category>
+    <category>Utility</category>
+  </categories>
+  <url type="homepage">https://github.com/firstbeelancer/alt-hardening-scanner</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2026-03-30" />
+  </releases>
+</component>

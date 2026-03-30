@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=ALT Hardening Scanner
+Name[ru]=ALT Hardening Scanner
+Comment=ALT Linux hardening scanner for FSTEC recommendations
+Comment[ru]=Сканер и применение параметров безопасной настройки ALT Linux по РД ФСТЭК
+Exec=alt-hardening-scanner
+Icon=alt-hardening-scanner
+Terminal=false
+Categories=GTK;GNOME;Settings;Security;
+StartupNotify=true
+Keywords=security;hardening;alt linux;fstec;
+Keywords[ru]=безопасность;hardening;альт;фстэк;

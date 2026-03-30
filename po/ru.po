@@ -1,0 +1,16 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: alt-hardening-scanner 1.0.0\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "ALT Hardening Scanner"
+msgstr "ALT Hardening Scanner"
+
+msgid "Run scan"
+msgstr "Запустить сканирование"
+
+msgid "Apply settings"
+msgstr "Применить настройки"

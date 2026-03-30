@@ -1,27 +1,17 @@
-# ── Rust / Cargo ──────────────────────────────────────────────────────────────
 target/
-src-tauri/target/
-Cargo.lock
+build/rpmbuild/BUILD/
+build/rpmbuild/RPMS/
+build/rpmbuild/SOURCES/*.tar.gz
+build/rpmbuild/SRPMS/
 
-# ── Node (preview-server) ─────────────────────────────────────────────────────
-node_modules/
-package-lock.json
-*.log
-
-# ── OS / IDE ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/settings.json
 *.swp
 *~
+*.log
 
-# ── Tauri build artifacts ──────────────────────────────────────────────────────
-src-tauri/target/
-src-tauri/WixTools/
-src-tauri/*.pdb
-
-# ── Отчёты и бекапы (генерируются во время работы) ───────────────────────────
 *.bak_*
 hardening-report*.html
 hardening-report*.pdf
